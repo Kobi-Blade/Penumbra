@@ -7,8 +7,8 @@
         <Company>absolute gangstas</Company>
         <Product>Penumbra</Product>
         <Copyright>Copyright © 2022</Copyright>
-        <FileVersion>1.3.3.0</FileVersion>
-        <AssemblyVersion>1.3.3.0</AssemblyVersion>
+        <FileVersion>1.3.3.3</FileVersion>
+        <AssemblyVersion>1.3.3.3</AssemblyVersion>
         <OutputPath>bin\$(Configuration)\</OutputPath>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Nullable>enable</Nullable>
@@ -113,15 +113,4 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
-
-    <Target Name="GetGitHash" BeforeTargets="GetAssemblyVersion" Returns="InformationalVersion">
-        <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" ContinueOnError="true">
-            <Output TaskParameter="ExitCode" PropertyName="GitCommitHashSuccess" />
-            <Output TaskParameter="ConsoleOutput" PropertyName="GitCommitHash" Condition="$(GitCommitHashSuccess) == 0" />
-        </Exec>
-
-        <PropertyGroup>
-            <InformationalVersion>$(GitCommitHash)</InformationalVersion>
-        </PropertyGroup>
-    </Target>
 </Project>

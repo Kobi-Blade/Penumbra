@@ -1,5 +1,5 @@
 {
-    "Author": "Ottermandias, Adam, Wintermute",
+    "Author": "Ottermandias, Adam, Wintermute, Kobi Blade",
     "Name": "Penumbra",
     "Punchline": "Runtime mod loader for Final Fantasy XIV.",
     "Description": "Runtime mod loader for Final Fantasy XIV.",
@@ -12,5 +12,5 @@
     "LoadPriority": 69420,
     "LoadRequiredState": 2,
     "LoadSync": true,
-    "IconUrl": "https://raw.githubusercontent.com/xivdev/Penumbra/master/images/icon.png"
+    "IconUrl": "https://raw.githubusercontent.com/Kobi-Blade/Penumbra/master/images/icon.png"
 }

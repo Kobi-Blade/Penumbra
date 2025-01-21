@@ -10,9 +10,9 @@ public struct ModCollectionIdentity
 
     public static readonly ModCollectionIdentity Empty = new(Guid.Empty, LocalCollectionId.Zero, EmptyCollectionName, 0);
 
-    public string Name { get; set; } = string.Empty;
-    public Guid Id { get; }
-    public LocalCollectionId LocalId { get; }
+    public string            Name    { get; set; } = string.Empty;
+    public Guid              Id      { get; }      = id;
+    public LocalCollectionId LocalId { get; }      = localId;
 
     /// <summary> The index of the collection is set and kept up-to-date by the CollectionManager. </summary>
     public int Index { get; internal set; }

@@ -173,9 +173,6 @@ public class SettingsTab : ITab, IUiService
             return rel == "." || !rel.StartsWith('.') && !Path.IsPathRooted(rel);
         }
 
-        if (newName.Length > RootDirectoryMaxLength)
-            return ($"Path is too long. The maximum length is {RootDirectoryMaxLength}.", false);
-
         if (Path.GetDirectoryName(newName).IsNullOrEmpty())
             return ("Path is not allowed to be a drive root. Please add a directory.", false);
 
@@ -187,17 +184,6 @@ public class SettingsTab : ITab, IUiService
         var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         if (IsSubPathOf(programFiles, newName) || IsSubPathOf(programFilesX86, newName))
             return ("Path is not allowed to be in ProgramFiles.", false);
-
-        var dalamud = _pluginInterface.ConfigDirectory.Parent!.Parent!;
-        if (IsSubPathOf(dalamud.FullName, newName))
-            return ("Path is not allowed to be inside your Dalamud directories.", false);
-
-        if (Functions.GetDownloadsFolder(out var downloads) && IsSubPathOf(downloads, newName))
-            return ("Path is not allowed to be inside your Downloads folder.", false);
-
-        var gameDir = _gameData.GameData.DataPath.Parent!.Parent!.FullName;
-        if (IsSubPathOf(gameDir, newName))
-            return ("Path is not allowed to be inside your game folder.", false);
 
         return selected
             ? ($"Press Enter or Click Here to Save (Current Directory: {old})", true)

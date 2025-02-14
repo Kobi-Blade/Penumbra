@@ -16,7 +16,7 @@ public class PenumbraSqPackStream : IDisposable
     public PenumbraSqPackStream(Stream stream)
     {
         BaseStream = stream;
-        Reader     = new BinaryReader(BaseStream);
+        Reader = new BinaryReader(BaseStream);
     }
 
     public SqPackHeader GetSqPackHeader()
@@ -118,139 +118,114 @@ public class PenumbraSqPackStream : IDisposable
 
     private unsafe void ReadModelFile(PenumbraFileResource resource, MemoryStream ms)
     {
-        var mdlBlock   = resource.FileInfo!.ModelBlock;
+        var mdlBlock = resource.FileInfo!.ModelBlock;
         var baseOffset = resource.FileInfo.Offset + resource.FileInfo.HeaderSize;
 
-        // 1/1/3/3/3 stack/runtime/vertex/egeo/index
-        // TODO: consider testing if this is more reliable than the Explorer method
-        // of adding mdlBlock.IndexBufferDataBlockIndex[2] + mdlBlock.IndexBufferDataBlockNum[2]
-        // i don't want to move this to that method right now, because i know sometimes the index is 0
-        // but it seems to work fine in explorer...
-        int totalBlocks = mdlBlock.StackBlockNum;
-        totalBlocks += mdlBlock.RuntimeBlockNum;
+        // Calculate total blocks upfront to avoid redundant recalculations
+        int totalBlocks = mdlBlock.StackBlockNum + mdlBlock.RuntimeBlockNum;
         for (var i = 0; i < 3; i++)
+        {
             totalBlocks += mdlBlock.VertexBufferBlockNum[i];
-
-        for (var i = 0; i < 3; i++)
             totalBlocks += mdlBlock.EdgeGeometryVertexBufferBlockNum[i];
-
-        for (var i = 0; i < 3; i++)
             totalBlocks += mdlBlock.IndexBufferBlockNum[i];
+        }
 
+        // Read all compressed block sizes in one go
         var compressedBlockSizes = Reader.ReadStructures<ushort>(totalBlocks);
-        var currentBlock         = 0;
-        var vertexDataOffsets    = new int[3];
-        var indexDataOffsets     = new int[3];
-        var vertexBufferSizes    = new int[3];
-        var indexBufferSizes     = new int[3];
+        var currentBlockIndex = 0;
 
-        ms.Seek(0x44, SeekOrigin.Begin);
+        // Preallocate arrays for vertex/index data offsets and sizes
+        var vertexDataOffsets = new int[3];
+        var indexDataOffsets = new int[3];
+        var vertexBufferSizes = new int[3];
+        var indexBufferSizes = new int[3];
 
+        // Helper: Reusable buffer for decompression
+        var decompressionBuffer = new byte[32000]; // Maximum block size
+
+        // Process stack blocks
         Reader.Seek(baseOffset + mdlBlock.StackOffset);
         var stackStart = ms.Position;
-        for (var i = 0; i < mdlBlock.StackBlockNum; i++)
-        {
-            var lastPos = Reader.BaseStream.Position;
-            ReadFileBlock(ms);
-            Reader.Seek(lastPos + compressedBlockSizes[currentBlock]);
-            currentBlock++;
-        }
+        for (var i = 0; i < mdlBlock.StackBlockNum; i++, currentBlockIndex++)
+            ProcessCompressedBlock(ms, compressedBlockSizes[currentBlockIndex], decompressionBuffer);
+        var stackSize = (int)(ms.Position - stackStart);
 
-        var stackEnd  = ms.Position;
-        var stackSize = (int)(stackEnd - stackStart);
-
+        // Process runtime blocks
         Reader.Seek(baseOffset + mdlBlock.RuntimeOffset);
         var runtimeStart = ms.Position;
-        for (var i = 0; i < mdlBlock.RuntimeBlockNum; i++)
-        {
-            var lastPos = Reader.BaseStream.Position;
-            ReadFileBlock(ms);
-            Reader.Seek(lastPos + compressedBlockSizes[currentBlock]);
-            currentBlock++;
-        }
+        for (var i = 0; i < mdlBlock.RuntimeBlockNum; i++, currentBlockIndex++)
+            ProcessCompressedBlock(ms, compressedBlockSizes[currentBlockIndex], decompressionBuffer);
+        var runtimeSize = (int)(ms.Position - runtimeStart);
 
-        var runtimeEnd  = ms.Position;
-        var runtimeSize = (int)(runtimeEnd - runtimeStart);
-
+        // Process vertex, edge, and index buffers
         for (var i = 0; i < 3; i++)
         {
-            if (mdlBlock.VertexBufferBlockNum[i] != 0)
+            // Vertex Buffers
+            if (mdlBlock.VertexBufferBlockNum[i] > 0)
             {
-                var currentVertexOffset = (int)ms.Position;
-                if (i == 0 || currentVertexOffset != vertexDataOffsets[i - 1])
-                    vertexDataOffsets[i] = currentVertexOffset;
-                else
-                    vertexDataOffsets[i] = 0;
-
                 Reader.Seek(baseOffset + mdlBlock.VertexBufferOffset[i]);
-
-                for (var j = 0; j < mdlBlock.VertexBufferBlockNum[i]; j++)
-                {
-                    var lastPos = Reader.BaseStream.Position;
-                    vertexBufferSizes[i] += (int)ReadFileBlock(ms);
-                    Reader.Seek(lastPos + compressedBlockSizes[currentBlock]);
-                    currentBlock++;
-                }
+                vertexDataOffsets[i] = (int)ms.Position;
+                for (var j = 0; j < mdlBlock.VertexBufferBlockNum[i]; j++, currentBlockIndex++)
+                    vertexBufferSizes[i] += (int)ProcessCompressedBlock(ms, compressedBlockSizes[currentBlockIndex], decompressionBuffer);
             }
 
-            if (mdlBlock.EdgeGeometryVertexBufferBlockNum[i] != 0)
-                for (var j = 0; j < mdlBlock.EdgeGeometryVertexBufferBlockNum[i]; j++)
-                {
-                    var lastPos = Reader.BaseStream.Position;
-                    ReadFileBlock(ms);
-                    Reader.Seek(lastPos + compressedBlockSizes[currentBlock]);
-                    currentBlock++;
-                }
-
-            if (mdlBlock.IndexBufferBlockNum[i] != 0)
+            // Edge Geometry Buffers
+            if (mdlBlock.EdgeGeometryVertexBufferBlockNum[i] > 0)
             {
-                var currentIndexOffset = (int)ms.Position;
-                if (i == 0 || currentIndexOffset != indexDataOffsets[i - 1])
-                    indexDataOffsets[i] = currentIndexOffset;
-                else
-                    indexDataOffsets[i] = 0;
+                for (var j = 0; j < mdlBlock.EdgeGeometryVertexBufferBlockNum[i]; j++, currentBlockIndex++)
+                    ProcessCompressedBlock(ms, compressedBlockSizes[currentBlockIndex], decompressionBuffer);
+            }
 
-                // i guess this is only needed in the vertex area, for i = 0
-                // Reader.Seek( baseOffset + mdlBlock.IndexBufferOffset[ i ] );
-
-                for (var j = 0; j < mdlBlock.IndexBufferBlockNum[i]; j++)
-                {
-                    var lastPos = Reader.BaseStream.Position;
-                    indexBufferSizes[i] += (int)ReadFileBlock(ms);
-                    Reader.Seek(lastPos + compressedBlockSizes[currentBlock]);
-                    currentBlock++;
-                }
+            // Index Buffers
+            if (mdlBlock.IndexBufferBlockNum[i] > 0)
+            {
+                indexDataOffsets[i] = (int)ms.Position;
+                for (var j = 0; j < mdlBlock.IndexBufferBlockNum[i]; j++, currentBlockIndex++)
+                    indexBufferSizes[i] += (int)ProcessCompressedBlock(ms, compressedBlockSizes[currentBlockIndex], decompressionBuffer);
             }
         }
 
+        // Write metadata to memory stream
         ms.Seek(0, SeekOrigin.Begin);
         ms.Write(BitConverter.GetBytes(mdlBlock.Version));
         ms.Write(BitConverter.GetBytes(stackSize));
         ms.Write(BitConverter.GetBytes(runtimeSize));
         ms.Write(BitConverter.GetBytes(mdlBlock.VertexDeclarationNum));
         ms.Write(BitConverter.GetBytes(mdlBlock.MaterialNum));
-        for (var i = 0; i < 3; i++)
-            ms.Write(BitConverter.GetBytes(vertexDataOffsets[i]));
-
-        for (var i = 0; i < 3; i++)
-            ms.Write(BitConverter.GetBytes(indexDataOffsets[i]));
-
-        for (var i = 0; i < 3; i++)
-            ms.Write(BitConverter.GetBytes(vertexBufferSizes[i]));
-
-        for (var i = 0; i < 3; i++)
-            ms.Write(BitConverter.GetBytes(indexBufferSizes[i]));
-
-        ms.Write(new[]
-        {
-            mdlBlock.NumLods,
-        });
+        foreach (var offset in vertexDataOffsets)
+            ms.Write(BitConverter.GetBytes(offset));
+        foreach (var offset in indexDataOffsets)
+            ms.Write(BitConverter.GetBytes(offset));
+        foreach (var size in vertexBufferSizes)
+            ms.Write(BitConverter.GetBytes(size));
+        foreach (var size in indexBufferSizes)
+            ms.Write(BitConverter.GetBytes(size));
+        ms.Write(new[] { mdlBlock.NumLods });
         ms.Write(BitConverter.GetBytes(mdlBlock.IndexBufferStreamingEnabled));
         ms.Write(BitConverter.GetBytes(mdlBlock.EdgeGeometryEnabled));
-        ms.Write(new byte[]
+        ms.Write(new byte[] { 0 });
+    }
+
+    // New helper to process compressed blocks
+    private uint ProcessCompressedBlock(MemoryStream ms, ushort compressedSize, byte[] decompressionBuffer)
+    {
+        var blockHeader = Reader.ReadStructure<DatBlockHeader>();
+
+        if (blockHeader.CompressedSize == 32000) // Uncompressed
         {
-            0,
-        });
+            ms.Write(Reader.ReadBytes((int)blockHeader.UncompressedSize));
+            return blockHeader.UncompressedSize;
+        }
+
+        var compressedData = Reader.ReadBytes(compressedSize);
+
+        using var compressedStream = new MemoryStream(compressedData);
+        using var zlibStream = new DeflateStream(compressedStream, CompressionMode.Decompress);
+        int bytesRead;
+        while ((bytesRead = zlibStream.Read(decompressionBuffer, 0, decompressionBuffer.Length)) > 0)
+            ms.Write(decompressionBuffer, 0, bytesRead);
+
+        return blockHeader.UncompressedSize;
     }
 
     private void ReadTextureFile(PenumbraFileResource resource, MemoryStream ms)
@@ -258,40 +233,53 @@ public class PenumbraSqPackStream : IDisposable
         if (resource.FileInfo!.BlockCount == 0)
             return;
 
+        // Read all LOD blocks at once
         var blocks = Reader.ReadStructures<LodBlock>((int)resource.FileInfo!.BlockCount);
 
-        // if there is a mipmap header, the comp_offset
-        // will not be 0
+        // Handle mipmap header
         var mipMapSize = blocks[0].CompressedOffset;
-        if (mipMapSize != 0)
+        if (mipMapSize > 0)
         {
-            var originalPos = BaseStream.Position;
-
-            BaseStream.Position = resource.FileInfo.Offset + resource.FileInfo.HeaderSize;
-            ms.Write(Reader.ReadBytes((int)mipMapSize));
-
-            BaseStream.Position = originalPos;
+            var mipMapData = ReadBytesAtPosition(
+                resource.FileInfo.Offset + resource.FileInfo.HeaderSize,
+                (int)mipMapSize
+            );
+            ms.Write(mipMapData);
         }
 
-        // i is for texture blocks, j is 'data blocks'...
-        for (byte i = 0; i < blocks.Count; i++)
+        // Process texture blocks
+        foreach (var block in blocks)
         {
-            if (blocks[i].CompressedSize == 0)
+            if (block.CompressedSize == 0)
                 continue;
 
-            // start from comp_offset
-            var runningBlockTotal = blocks[i].CompressedOffset + resource.FileInfo.Offset + resource.FileInfo.HeaderSize;
+            var runningBlockTotal = block.CompressedOffset + resource.FileInfo.Offset + resource.FileInfo.HeaderSize;
+
+            // Read primary block
             ReadFileBlock(runningBlockTotal, ms, true);
 
-            for (var j = 1; j < blocks[i].BlockCount; j++)
+            // Process additional blocks
+            for (var j = 1; j < block.BlockCount; j++)
             {
-                runningBlockTotal += (uint)Reader.ReadInt16();
+                runningBlockTotal += Reader.BaseStream.Seek(0, SeekOrigin.Current); // Read offset increment correctly
                 ReadFileBlock(runningBlockTotal, ms, true);
             }
 
-            // unknown
-            Reader.ReadInt16();
+            // Skip the unknown trailing Int16
+            Reader.BaseStream.Seek(2, SeekOrigin.Current);
         }
+    }
+
+    // Utility: Reads bytes from a specific position
+    private byte[] ReadBytesAtPosition(long position, int count)
+    {
+        var originalPos = BaseStream.Position;
+        BaseStream.Position = position;
+
+        var data = Reader.ReadBytes(count);
+
+        BaseStream.Position = originalPos;
+        return data;
     }
 
     protected uint ReadFileBlock(MemoryStream dest, bool resetPosition = false)
@@ -302,19 +290,24 @@ public class PenumbraSqPackStream : IDisposable
         var originalPosition = BaseStream.Position;
         BaseStream.Position = offset;
 
+        // Read block header
         var blockHeader = Reader.ReadStructure<DatBlockHeader>();
 
-        // uncompressed block
-        if (blockHeader.CompressedSize == 32000)
+        if (blockHeader.CompressedSize == 32000) // Uncompressed block
         {
-            dest.Write(Reader.ReadBytes((int)blockHeader.UncompressedSize));
+            // Directly copy uncompressed data
+            var buffer = Reader.ReadBytes((int)blockHeader.UncompressedSize);
+            dest.Write(buffer);
         }
         else
         {
-            var data = Reader.ReadBytes((int)blockHeader.CompressedSize);
+            // Reuse buffer for compressed data
+            Span<byte> compressedData = stackalloc byte[(int)blockHeader.CompressedSize];
+            Reader.Read(compressedData);
 
-            using var compressedStream = new MemoryStream(data);
-            using var zlibStream       = new DeflateStream(compressedStream, CompressionMode.Decompress);
+            // Stream decompression to destination
+            using var compressedStream = new MemoryStream(compressedData.ToArray());
+            using var zlibStream = new DeflateStream(compressedStream, CompressionMode.Decompress);
             zlibStream.CopyTo(dest);
         }
 

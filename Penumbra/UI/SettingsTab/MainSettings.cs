@@ -20,9 +20,6 @@ public sealed class MainSettings(
     /// <summary> Changing the base mod directory. </summary>
     private string? _newModDirectory;
 
-    private string _lastCloudSyncTestedPath = string.Empty;
-    private bool   _lastCloudSyncTestResult;
-
     public void DrawHeader()
     {
         DrawEnabledBox();
@@ -81,53 +78,9 @@ public sealed class MainSettings(
     /// <summary> Check a potential new root directory for validity and return the button text and whether it is valid. </summary>
     private (string Text, bool Valid) CheckRootDirectoryPath(string newName, string old, bool selected)
     {
-        if (newName.Length > RootDirectoryMaxLength)
-            return ($"Path is too long. The maximum length is {RootDirectoryMaxLength}.", false);
-
-        if (Path.GetDirectoryName(newName).IsNullOrEmpty())
-            return ("Path is not allowed to be a drive root. Please add a directory.", false);
-
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        if (IsSubPathOf(desktop, newName))
-            return ("Path is not allowed to be on your Desktop.", false);
-
-        var programFiles    = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        if (IsSubPathOf(programFiles, newName) || IsSubPathOf(programFilesX86, newName))
-            return ("Path is not allowed to be in ProgramFiles.", false);
-
-        var dalamud = Path.GetDirectoryName(Path.GetDirectoryName(fileNames.ConfigurationDirectory))!;
-        if (IsSubPathOf(dalamud, newName))
-            return ("Path is not allowed to be inside your Dalamud directories.", false);
-
-        if (WindowsFunctions.GetDownloadsFolder(out var downloads) && IsSubPathOf(downloads, newName))
-            return ("Path is not allowed to be inside your Downloads folder.", false);
-
-        var gameDir = Path.GetDirectoryName(Path.GetDirectoryName(fileNames.GameDataDirectory))!;
-        if (IsSubPathOf(gameDir, newName))
-            return ("Path is not allowed to be inside your game folder.", false);
-
-        if (_lastCloudSyncTestedPath != newName)
-        {
-            _lastCloudSyncTestResult = CloudApi.IsCloudSynced(newName);
-            _lastCloudSyncTestedPath = newName;
-        }
-
-        if (_lastCloudSyncTestResult)
-            return ("Path is not allowed to be cloud-synced.", false);
-
         return selected
             ? ($"Press Enter or Click Here to Save (Current Directory: {old})", true)
             : ($"Click Here to Save (Current Directory: {old})", true);
-
-        static bool IsSubPathOf(string basePath, string subPath)
-        {
-            if (basePath.Length is 0)
-                return false;
-
-            var rel = Path.GetRelativePath(basePath, subPath);
-            return rel == "." || !rel.StartsWith('.') && !Path.IsPathRooted(rel);
-        }
     }
 
     /// <summary>

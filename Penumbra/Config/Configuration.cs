@@ -172,7 +172,7 @@ public partial class Configuration : IPluginConfiguration, ISavable, IService
     /// Load the current configuration.
     /// Includes adding new colors and migrating from old versions.
     /// </summary>
-    public Configuration(CharacterUtility utility, ConfigMigrationService migrator, SaveService saveService, EphemeralConfig ephemeral,
+    public Configuration(CharacterUtility utility, SaveService saveService, EphemeralConfig ephemeral,
         UiConfig ui, FilterConfig filters, TextureOptimizationConfig textureOptimization)
     {
         _saveService        = saveService;

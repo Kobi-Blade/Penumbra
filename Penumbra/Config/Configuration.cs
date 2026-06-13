@@ -172,7 +172,7 @@ public partial class Configuration : IPluginConfiguration, ISavable, IService
     /// Load the current configuration.
     /// Includes adding new colors and migrating from old versions.
     /// </summary>
-    public Configuration(CharacterUtility utility, SaveService saveService, EphemeralConfig ephemeral,
+    public Configuration(SaveService saveService, EphemeralConfig ephemeral,
         UiConfig ui, FilterConfig filters, TextureOptimizationConfig textureOptimization)
     {
         _saveService        = saveService;
@@ -180,10 +180,10 @@ public partial class Configuration : IPluginConfiguration, ISavable, IService
         Ui                  = ui;
         Filters             = filters;
         TextureOptimization = textureOptimization;
-        Load(utility, migrator);
+        Load();
     }
 
-    public void Load(CharacterUtility utility, ConfigMigrationService migrator)
+    public void Load()
     {
         static void HandleDeserializationError(object? sender, ErrorEventArgs errorArgs)
         {
@@ -207,8 +207,6 @@ public partial class Configuration : IPluginConfiguration, ISavable, IService
                     "Error reading Configuration, reverting to default.\nYou may be able to restore your configuration using the rolling backups in the XIVLauncher/backups/Penumbra directory.",
                     "Error reading Configuration", NotificationType.Error);
             }
-
-        migrator.Migrate(utility, this);
     }
 
     /// <summary> Save the current configuration. </summary>

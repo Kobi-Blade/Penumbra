@@ -501,7 +501,20 @@ public class ActiveCollections : ISavable, IDisposable, IService
     public static bool Load(FilenameService fileNames, out JObject ret)
     {
         var file = fileNames.ActiveCollectionsFile;
-        var jObj = BackupService.GetJObjectForFile(fileNames, file);
+        JObject? jObj = null;
+        if (File.Exists(file))
+        {
+            try
+            {
+                var text = File.ReadAllText(file);
+                jObj = JObject.Parse(text);
+            }
+            catch (Exception ex)
+            {
+                Penumbra.Log.Error($"Failed to load {file}:\n{ex}");
+            }
+        }
+
         if (jObj == null)
         {
             ret = [];

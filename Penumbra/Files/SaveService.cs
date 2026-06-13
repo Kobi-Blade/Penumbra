@@ -13,10 +13,10 @@ public interface ISavable : ISavable<FilenameService>
 
 public sealed class SaveService : BaseSaveService<FilenameService>, IService
 {
-    public SaveService(LunaLogger log, FrameworkManager framework, FilenameService fileNames, BackupService backupService)
-        : base(log, framework, fileNames, backupService.Awaiter)
+    public SaveService(LunaLogger log, FrameworkManager framework, FilenameService fileNames)
+        : base(log, framework, fileNames, null)
     {
-        BackupMode = BackupMode.SingleBackup;
+        BackupMode = BackupMode.NoBackups;
     }
 
     [OverloadResolutionPriority(100)]

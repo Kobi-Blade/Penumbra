@@ -66,7 +66,6 @@ public class Penumbra : IDalamudPlugin
             Messager         = _services.GetService<PenumbraMessager>();
             Dynamis          = _services.GetService<DynamisIpc>();
             _validityChecker = _services.GetService<ValidityChecker>();
-            _services.GetService<BackupService>(); // Initialize early to create backups.
             _services.GetService<ConfigMigrationService>().MigrateOldConfigStyle();
             _services.EnsureRequiredServices();
 

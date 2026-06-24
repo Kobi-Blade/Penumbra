@@ -1,11 +1,10 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <AssemblyTitle>Penumbra</AssemblyTitle>
-        <Company>absolute gangstas</Company>
         <Product>Penumbra</Product>
-        <Copyright>Copyright © 2025</Copyright>
-        <FileVersion>9.0.0.1</FileVersion>
-        <AssemblyVersion>9.0.0.1</AssemblyVersion>
+        <Copyright>Copyright © 2026</Copyright>
+        <FileVersion>1.0.0.0</FileVersion>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <OutputPath>bin\$(Configuration)\</OutputPath>
         <LangVersion>preview</LangVersion>
         <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>

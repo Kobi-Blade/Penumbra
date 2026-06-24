@@ -1,16 +1,16 @@
 {
-    "Author": "Ottermandias, Nylfae, Adam, Wintermute",
+    "Author": "Kobi Blade",
     "Name": "Penumbra",
-    "Punchline": "Runtime mod loader and manager.",
-    "Description": "Runtime mod loader and manager.",
+    "Punchline": "Runtime mod loader for FINAL FANTASY XIV.",
+    "Description": "Runtime mod loader for FINAL FANTASY XIV.",
     "InternalName": "Penumbra",
-    "AssemblyVersion": "9.0.0.1",
-    "RepoUrl": "https://github.com/xivdev/Penumbra",
+    "AssemblyVersion": "1.0.0.0",
+    "RepoUrl": "https://github.com/Kobi-Blade/Penumbra",
     "ApplicableVersion": "any",
     "Tags": [ "modding" ],
     "DalamudApiLevel": 15,
     "LoadPriority": 69420,
     "LoadRequiredState": 2,
     "LoadSync": true,
-    "IconUrl": "https://raw.githubusercontent.com/xivdev/Penumbra/master/images/icon.png"
+    "IconUrl": "https://raw.githubusercontent.com/Kobi-Blade/Penumbra/master/images/icon.png"
 }
